@@ -1,0 +1,4 @@
+from pyspark.sql import SparkSession
+spark1 = SparkSession.builder.appName('App').getOrCreate()
+df = spark1.read.csv('/home/zorro/VM/BigData/netology-big-data-master/lecture-1/titanic.csv',inferSchema=True,header = True)
+df.printSchema()
