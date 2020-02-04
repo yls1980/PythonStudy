@@ -1,0 +1,422 @@
+import unittest
+import codecs
+import os
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from time import sleep
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import *
+import pyautogui
+import cx_Oracle
+import random
+import sys
+from bs4 import BeautifulSoup
+import traceback
+
+def p_sleep(nSec, sText="Сплю"):
+    if nSec == 0:
+        slp = random.randint(5, 15)
+    else:
+        slp = nSec
+    for n in range(1,slp):
+        sleep(1)
+        text = "\r {0}... {1} / {2}. ".format(sText, n, slp)
+        sys.stdout.write(text)
+        sys.stdout.flush()
+    print("")
+    print("Работаю...")
+
+#con = cx_Oracle.connect('skorkinyl/rjnjhsq1980@10.36.131.4/sigmadb')
+#cur = con.cursor()
+#sql = "select ANSW_CHECK,RES from anw_test where VOPROS = :1 and ANSWER = :2"
+#vopr = "Какие преимущества дает применение практики модульного тестирования? (Укажите все правильные варианты ответов)"
+#answ1 = "Документирование кода"
+#cur.execute(sql, (vopr, answ1))
+#row = cur.fetchone()
+#a1,a2 = row
+#print(row[0])
+
+def sMain(browser):
+    browser.get('https://auth.sberbank-school.ru/login?callback=https%3A%2F%2Fsberbank-school.ru%2Fprograms%2F1661')
+    #browser.get('https://exam.sberbank-school.ru/atdata/Report/661529ae-5cbb-4f44-af6e-04a6ba0434fd')
+    vRunId=""
+    ##browser.fullscreen_window()
+    browser.maximize_window()
+    try:
+        con = cx_Oracle.connect('skorkinyl/rjnjhsq1980@10.36.131.4/sigmadb')
+        cur = con.cursor()
+
+        if 1==1:
+            lg = browser.find_element_by_name("login")
+            lg.send_keys("skorkin-yal")
+            pas = browser.find_element_by_name("password")
+            pas.send_keys("V2nM5a3xH6")
+            lg_btn = browser.find_element_by_class_name("button--light")
+            lg_btn.submit()
+
+            original_window = browser.current_window_handle
+            wait = WebDriverWait(browser, 500)
+            # app > main > div > div.content > div.content__inner > div:nth-child(1) > div.programs > div:nth-child(3) > div > div.program__btn > a
+            my_obuch = wait.until(EC.element_to_be_clickable((By.XPATH, '/html/body/div[1]/main/div/div[1]/div[2]/div[1]/div[1]/div[1]/div/div[6]/a')))
+            #my_obuch = wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "Перейти")))
+            my_obuch.click()
+            #Пройти тестирвоание
+            my_test = wait.until(EC.element_to_be_clickable((By.XPATH, '/html/body/div[1]/main/div/div[1]/div[2]/div/div/div[1]/div/div/section/div[1]/ul/li[7]/span/a')))
+            my_test.click()
+            #Итоговое тестирование
+            my_test = wait.until(EC.element_to_be_clickable((By.XPATH, '/html/body/div[1]/main/div/div[1]/div[2]/div/div/div[1]/div/div/section/div[1]/ul/li[7]/span/a')))
+            my_test.click()
+            #начать тест
+            wait = WebDriverWait(browser, 10)
+            try:
+                my_test = wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/main/div/div[1]/div[2]/div/div/div[2]/div[1]/div/div/div/div/div/div/div/div[3]/div/div/a[1]")))
+                my_test.click()
+            except TimeoutException as e2:
+                my_test = wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "Пройти тестирование")))
+                my_test.click()
+
+            actions = ActionChains(browser)
+            p_sleep(0)
+            try:
+                browser.switch_to_window(browser.window_handles[1])
+            except Exception as e:
+                print(e)
+                browser.switch_to_active_element()
+            print(browser.current_url)
+
+            #browser.execute_script("document.ondragstart = sel; document.onselectstart = sel; document.oncontextmenu = sel; function sel() {event.preventDefault();} ")
+            wait = WebDriverWait(browser, 10)
+            #start_em.click()
+            try:
+                my_test = wait.until(EC.element_to_be_clickable((By.XPATH,"/ html / body / div[4] / main / div / div / div / div / div[2] / div / div[4] / div[2] / button")))
+                my_test.click()
+                p_sleep(0)
+            except NoSuchElementException as e:
+                print(e)
+            except ElementNotSelectableException as e1:
+                print(e1)
+            except TimeoutException as e2:
+                print(e2)
+
+        in_tests = browser.title
+        wait = WebDriverWait(browser, 20)
+        p_sleep(0)
+            #for swtch in browser.find_elements_by_xpath("//*[@type='radio']"):
+            #ВОПРОСЫ
+        html = browser.page_source
+        soup = BeautifulSoup(html)
+        sql = "select ANSW_CHECK,RES,RUNID from anw_test where trim(VOPROS) = trim(:1) and trim(ANSWER) = trim(:2) order by ins_date desc "
+        sqlR = "select ANSW_CHECK,RES,RUNID from anw_test where trim(VOPROS) = trim(:1) and trim(ANSWER) = trim(:2) and RES='Вы ответили правильно.' and ANSW_CHECK!='None' order by ins_date desc"
+        sqlN = "select ANSW_CHECK,RES from anw_test where trim(VOPROS) = trim(:1) and trim(ANSWER) = trim(:2) and RES='Вы ответили неправильно.' and ANSW_CHECK!='None' order by ins_date desc"
+        sqlins = "insert into anw_test (NPP, VOPROS, ANSWER, ANSW_CHECK, RES, RUNID) values (:pNPP, :pVOPROS, :pANSWER, :pANSW_CHECK, :pRES, :pRUNID)"
+        sqlUpd = "update anw_test set BINANSW = :1 where trim(VOPROS) = trim(:2) and ((RUNID = trim(:3) and RUNID is not null) or RUNID is null)"
+        sqlUpdNoRunId = "update anw_test set BINANSW = :1 where trim(VOPROS) = trim(:2) and RES='Вы ответили правильно.'"
+        sqlBinSel = "select BinAnsw from anw_test where trim(VOPROS) = trim(:1) and BinAnsw is not null and RES='Вы ответили неправильно.' order by ins_date desc"
+        sqlDel = "delete from anw_test where RUNID=:1 and VOPROS=:2 and ANSWER=:3 and ANSW_CHECK='Answer'"
+        sqlVoprDel = "delete from anw_test where VOPROS=:1"
+        #проверка раздела
+        res = soup.find("div", class_="test-progress__header")
+
+        vRunId = browser.current_url
+
+        if res!= None:
+            out_ = None
+            NumVopr = 0
+            while out_ == None:
+                    #вопросы
+                    # вопрос
+                wait = WebDriverWait(browser, 10)
+                NumVopr+=1
+                BinAnsw = ""
+                res = soup.find("div", class_="test-content__quest-text").find('span',class_="quest-text__prompt js-prompt")
+                ln = len(res.contents)
+                vopr = res.contents[ln-1]
+                a2 = ""
+                rAnsw=""
+                rRunId = ""
+                is_check = False
+                for answ in soup.find_all("div", class_="single-ans__radio__content"):
+                    answ1 = answ.contents[0]
+                    cur.execute(sqlR, (vopr, answ1))
+                    row = cur.fetchone()
+                    if row == None:
+                        cur.execute(sql, (vopr, answ1))
+                        row = cur.fetchone()
+                    if row != None:
+                        a1,a2,rRunId = row
+                        if a2=="Вы ответили правильно." and a1!="None":
+                            rAnsw = answ1
+
+                vCheckAnsw=False
+                RBinAnsw=""
+                for answ in soup.find_all("div", class_="multi-ans__check__content"):
+                    is_check = True
+                    vCheckAnsw = False
+                    answ1 = answ.contents[0]
+                    cur.execute(sqlR, (vopr, answ1))
+                    row = cur.fetchone()
+                    if row != None:
+                        a1,a2,rRunId = row
+                        rAnsw = answ1
+                        vCheckAnsw=True
+                    if vCheckAnsw:
+                        RBinAnsw=RBinAnsw+"1"
+                    else:
+                        RBinAnsw=RBinAnsw+"0"
+
+                questions = browser.find_elements_by_xpath("/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[1]/div/div[2]/div/div[2]/div[*]/label/div")
+
+                if rAnsw != "": #еСТЬ ПРАВИЛЬНЫЙ ОТВЕТ
+                    if is_check:
+                        # Для чекбоксов
+                        cur.execute(sqlUpdNoRunId, (RBinAnsw, vopr))
+                        con.commit
+                        for swtch in questions:
+                            answ2 = swtch.text
+                            cur.execute(sqlR, (vopr, answ2))
+                            row = cur.fetchone()
+                            if row != None:
+                                a1, a2,a3 = row
+                                swtch.click()
+                                continue
+                        print("Отвечаем на "+vopr)
+                    else:
+                        for swtch in questions:
+                            answ2 = swtch.text
+                            if answ2 == rAnsw:
+                                swtch.click()
+                                break
+                else:
+                    if is_check:
+                        #Для чекбоксов
+                        n=0
+                        vHistBinAnsw = BinAnsw
+                        Raziki = random.randint(1, len(questions))
+                        while vHistBinAnsw == BinAnsw or BinAnsw.count("1")< Raziki:
+                            BinAnsw = ""
+                            for swtch in questions:
+                                n +=1
+                                answ2 = swtch.text
+                                # угадайка если нет правильного ответа
+                                dd = bool(random.getrandbits(1))
+                                if dd:
+                                    BinAnsw = BinAnsw +"1"
+                                else:
+                                    BinAnsw = BinAnsw + "0"
+
+                            try:
+                                cur.execute(sqlBinSel, (vopr,))
+                                row = cur.fetchone()
+                                if row != None:
+                                    vHistBinAnsw = row
+                            except Exception as e:
+                                print("Ошибка:"+e)
+                                vHistBinAnsw = "Error"
+
+                        n1 = 0
+                        for sbin in BinAnsw:
+                            #угадайка
+                            n1 +=1
+                            if sbin =="1":
+                                #swtch = browser.find_elements_by_xpath("/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[1]/div/div[2]/div/div[2]/div["+str(n1)+"]/label/div")
+                                try:
+                                    wait2 = WebDriverWait(browser, 10)
+                                    checks = wait2.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[1]/div/div[2]/div/div[2]/div["+str(n1)+"]/label/div")))
+                                    checks.click()
+                                except TimeoutException as e2:
+                                    n2=0
+                                    for swtch1 in questions:
+                                        n2=+1
+                                        if n2 == n1:
+                                            swtch1.click()
+                                            break
+
+                                qNumb= "Вопрос№ "+str(NumVopr)+" Отв.№"+str(n)
+                                cur.execute(sqlins, [qNumb, vopr, answ2, "Answer", "Вы ответили правильно.", vRunId])
+                        cur.execute(sqlUpd, (BinAnsw, vopr, vRunId))
+                        con.commit
+
+                    else:
+                        n = 0
+                        numb_quest = len(questions) - 1
+                        for swtch in questions:
+                            n += 1
+                            answ2 = swtch.text
+                            cur.execute(sqlN, (vopr, answ2))
+                            resrow = cur.fetchone()
+                            try:
+                                lnRes = len(resrow)
+                            except:
+                                lnRes=0
+                            if lnRes == 0:
+                                swtch.click()
+                                qNumb= "Вопрос№ "+str(NumVopr)+" Отв.№"+str(n)
+                                cur.execute(sqlins, [qNumb, vopr, answ2, "Answer", "Вы ответили правильно.", vRunId])
+                                con.commit
+                                break
+                            else:
+                                a1, a2 = resrow
+
+                if is_check and rAnsw =="":
+                    # для корректировки вручную
+                    print("Откорректируйте")
+                    p_sleep(12,"Откорректируйте")
+
+                    # сохраняем ручную корректировку
+                    vBinAnsw = ""
+                    quest = browser.find_elements_by_xpath("/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[1]/div/div[2]/div/div[2]/div[*]")
+                    for answ in quest:
+
+                        answ_check = answ.find_element_by_tag_name("input")
+                        vClass = answ_check.get_attribute("class")
+                        vChecked = answ_check.get_attribute("checked")
+
+                        if vClass == "js-checkbox checked":
+                            vBinAnsw = vBinAnsw+"1"
+                        elif vClass == "js-checkbox":
+                            vBinAnsw = vBinAnsw + "0"
+                    if vBinAnsw != BinAnsw:
+                        cur.execute(sqlVoprDel,(vopr,))
+                    a1 = 0
+                    for an in vBinAnsw:
+                        a1 += 1
+                        if an=="1":
+                            answ_ = browser.find_element_by_xpath("/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[1]/div/div[2]/div/div[2]/div[" + str(a1) + "]/label/div")
+                            answ2 = answ_.text
+                            qNumb = "Вопрос№ " + str(NumVopr) + " Отв.№" + str(a1)
+                            cur.execute(sqlins, [qNumb, vopr, answ2, "Answer", "Вы ответили правильно.", vRunId])
+                            con.commit
+                    # если есть записи(правильный ответ)
+                    cur.execute(sqlUpd, (vBinAnsw, vopr, vRunId))
+                    con.commit
+
+                    # отвечаем
+                waitBt = WebDriverWait(browser, 10)
+                try:
+                    butt = waitBt.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[2]/div/button[2]/span")))
+                except TimeoutException as e2:
+                    try:
+                        butt = waitBt.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[2]/div/button[1]")))
+                    except TimeoutException as e2:
+                        butt = waitBt.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[2]/div/button[*]")))
+                butt.click()
+                p_sleep(0)
+                wait1 = WebDriverWait(browser, 10)
+                try:
+                    butt1 = wait1.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="modal"]/div/div/div[3]/button[1]')))
+                    butt1.click()
+                    browser.switch_to_active_element()
+                except TimeoutException as e2:
+                    print("")
+                p_sleep(0)
+                soup = BeautifulSoup(browser.page_source)
+                out_ = soup.find("div", class_="report-qmap-list")
+                print("Вопрос №"+str(NumVopr)+" - Ok")
+
+        #for python_button in browser.find_elements_by_css_selector("body > div.page.page_pad_light > main > div > div > div > div > div > div.test-content__left > div > div > div.js-tasks.test-content__answ > div > div.js-taskList.test-content__list"):
+        #    python_button.click()
+        #handle = open("curr_page.txt", "w", encoding="utf8")
+        #html = browser.page_source
+        #handle.write(html)
+        #handle.close()
+
+        #pyautogui.hotkey('ctrl', 's')
+        #sleep(1)
+        #pyautogui.typewrite("curr_page1.txt")
+        p_sleep(0)
+        #pyautogui.hotkey('enter')
+        #pyautogui.hotkey('enter')
+
+
+        #результыты
+        #проверка, что мы в результатах
+        html = browser.page_source
+        soup = BeautifulSoup(html)
+        try:
+            res = soup.find("div", class_="report-qmap-list")
+            if res != None:
+                html = browser.page_source
+                soup = BeautifulSoup(html)
+                for each_div in soup.find_all("div", class_="report-question-item"):
+                    for ques in each_div.find_all("div", class_="report-question-item-task"):
+                        quest = []
+                        buf = ques.find("p").find('span', class_="task-number")
+                        if buf != None:
+                            qNumb = buf.contents[0]
+                        for i in ques.find("p"):
+                            quest.append(str(i).strip())
+                        ln = len(quest)
+                        qCont = str(quest[ln-1])
+                        print(qNumb+': '+qCont)
+                    res = each_div.find("div", class_="report-question-summary-body").find('span')
+                    res = res.text.strip()
+                    # Жестко зафиксируем правильные ответы, для Этого чистим статистику
+                    if res == 'Вы ответили правильно.':
+                        cur.execute(sqlVoprDel, (qCont,))
+                    ResBinAnsw=""
+                    for answ in each_div.find_all("li"):
+                        answ_cont = answ.find("div", class_="answer-select-content")
+                        answ_stat = answ.find("div", class_="answer-select-status")
+                        answ_stat = str(answ_stat.find('span'))
+                        print(answ_cont.text.strip()+' ответ:'+str(answ_stat))
+                        qAnsw = answ_cont.text.strip()
+                        qstat = str(answ_stat).strip()
+                        if res == 'Вы ответили неправильно.':
+                            cur.execute(sqlDel, (vRunId, qCont,qAnsw))
+                        if qstat='None':
+                            ResBinAnsw=ResBinAnsw+"0"
+                        else:
+                            ResBinAnsw = ResBinAnsw + "1"
+                        cur.execute(sqlins, [qNumb, qCont, qAnsw, qstat,res,vRunId])
+                        con.commit()
+                    cur.execute(sqlUpd, (ResBinAnsw, qCont, vRunId))
+                    con.commit()
+
+
+                    print(res)
+        except Exception as e:
+            print("Ошибка:"+e)
+
+        con.close
+        print("Работа завершена "+vRunId)
+        wait1 = WebDriverWait(browser, 10)
+        buttExit = wait1.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[4]/main/div/div/div/div/div/div/div[1]/div/div[1]/a[1]")))
+        buttExit.click()
+        browser.quit()
+        return 1
+
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc())
+        print("Ошибка в работе: " + vRunId)
+        return 0
+        #browser.close()
+
+def Application(issue):
+    n=1
+    nMin, nMax = (100,1000)
+    while n<issue:
+        n=+1
+        browChoose = bool(random.getrandbits(1))
+        if browChoose:
+            browser1 = webdriver.Firefox()
+        else:
+            browser1 = webdriver.Chrome('C:\\Users\\17703170\\ChromeDriver\\chromedriver.exe')
+        nRes = sMain(browser1)
+        browser1.quit()
+        if nRes==0:
+            #завершилось с ошибкой
+            nMin, nMax = (5,20)
+        else:
+            nMin, nMax = (100, 1000)
+        slp1 = random.randint(nMin, nMin)
+        p_sleep(slp1, "Долго сплю")
+
+Application(5)
+#browser1 = webdriver.Chrome('C:\\Users\\17703170\\ChromeDriver\\chromedriver.exe')
+#nRes = sMain(browser1)
+
+#/html/body/div[4]/main/div/div/div/div/div/div[1]/div/div/div[1]/div/div[2]/div/div[2]/div[2]/label/div
